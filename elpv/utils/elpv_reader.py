@@ -54,3 +54,4 @@ def load_dataset(fname=None):
                        for fn in image_fnames])
 
     return images, probs, types
+
