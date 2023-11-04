@@ -1,101 +1,78 @@
 import cv2 as cv
-import numpy as np
+import os
 from tqdm import tqdm
-from matplotlib import pyplot as plt
-from typing import Union, List
+from typing import Callable, Optional, List, Tuple
+import numpy as np
 from sklearn.cluster import KMeans
-from utils.elpv_reader import DATA_PATH
 
-class Sift():
-    def __init__(self,
-                images: Union[List[str], List[np.ndarray]] = None, 
-                nfeatures=None, 
-                contrastThreshold=None, 
-                flag = None) -> None:
+class SIFT():
+    def __init__(self, img_dir, img_path, n_features=None, contrastThreshold=None,
+                 processing_funcs: Optional[List[Callable[[np.ndarray], np.ndarray]]] = None) -> None:
+        self.img_path = img_path
+        self.n_features = n_features
+        self.contrastThreshold = contrastThreshold
+        self.sift = cv.SIFT_create(self.n_features, self.contrastThreshold)
         
-        self.flag = flag
-        self.nfeatures = nfeatures
-        self.images = []
-        
-        if isinstance(images[0], str):
-            self.images = [cv.imread(DATA_PATH + '/' +img, cv.IMREAD_GRAYSCALE) for img in images]
-        
-        if isinstance(images[0], np.ndarray):
-            self.images = images
-            
-        self.sift = cv.SIFT_create(nfeatures=self.nfeatures,
-                                   contrastThreshold=contrastThreshold)
-        
-        self.descriptor, self.zero_des, self.des_hist= self.calculate_descriptor(self.images)
-    
-    def plot_hist(self):
-        plt.hist(self.des_hist, bins=self.nfeatures)
-        plt.show()
-        
-        idx, count = np.unique(self.des_hist, return_counts=True)
-        print(idx, count)
-        
-        
-    def detect(self, img, mask=None):
-        kp, des = self.sift.detectAndCompute(img, mask)
-        
-        return kp, des
-    
-    def draw(self, img, kp):
-        
-        img = cv.drawKeypoints(img, kp, None, flags = self.flag)
-        
-        return img
-    
-    def calculate_descriptor(self, images):
-        
-        descriptors = []
-        zero_des = []
-        des_hist = []
-        
-        for idx, img in enumerate(tqdm(images, desc='Calculating descriptors')):
-            _, des = self.detect(img)
-            
-            if des is None:
-
-                des = np.zeros((1,128))
-                zero_des.append(idx)
-                des_hist.append(0)
-                descriptors.append(des)
-                continue
-            
-            des_hist.append(des.shape[0])
-            descriptors.append(des)
-        
-        return descriptors, zero_des, des_hist
-    
-    def calculate_clusters(self, descriptors, ks, n_init='auto', tol=1e-4):
-        
-        if len(descriptors) == 0:
-            raise ValueError('No descriptors')
-        
-        if len(descriptors) == self.descriptor:
-            raise ValueError('All data for cluster')
-        
-        
-        results = {}
+        if processing_funcs:
+            self.images = []
+            for image in tqdm(self.img_path, desc='Loading images'):
                 
-        if isinstance(ks, list):
-            pass
+                img = cv.imread(os.path.join(img_dir, image), cv.IMREAD_GRAYSCALE)
+                
+                for processing_func in processing_funcs:
+                    img = processing_func(img)
+                    
+                self.images.append(img)
+        else:
+            self.images = [cv.imread(os.path.join(img_dir, img), cv.IMREAD_GRAYSCALE) for img in self.img_path]
+    
+    
+    def calculate_desriptor(self, mask = None) -> Tuple[list, list]:
+        descriptors = []
+        empty_des = []
+        kps = []
+        for idx, img in enumerate(tqdm(self.images, desc='Calculating descriptors')):
+            kp, des = self.sift.detectAndCompute(img, mask)
+            descriptors.append(des)
+            kps.append(kp)
+            if des is None:
+                empty_des.append(idx)
         
-        if isinstance(ks, int):
-            ks = [ks]
+        return kps, descriptors, empty_des
+    
+    def build_features(self, descriptors, ks, state, init = 'k-means++', n_init = 10, max_iter = 300, tol = 1e-4):
         
-        for k in tqdm(ks, desc='Calculating clusters'):
+        hists = {}
+        models = {}
+        for k in ks:
+            print(f'Calculating kmeans for k = {k}')
+            hist = np.zeros((len(descriptors), k))
+            
             kmeans = KMeans(n_clusters=k, 
-                            random_state= 0,
-                            n_init=n_init,
+                            random_state=state,
+                            n_init = n_init,
+                            init = init,
+                            max_iter=max_iter,
                             tol = tol)
             
-            kmeans.fit(np.concatenate(descriptors.copy(), axis=0), 
-                    #callback=[self.displaybar])
-            )
+            kmeans.fit(np.concatenate(descriptors.copy(), axis=0))
+            for idx, des in enumerate(tqdm(descriptors, desc=f'Building histogram for k = {k}')):
+                if des.shape[0] == 0:
+                    print(idx)
+                pred = kmeans.predict(des)
+                hist[idx] += np.bincount(pred, minlength=k)
 
-            results[k] = kmeans
+            hists[k]= hist
+            models[k] = kmeans
+            
+        return models, hists
+    
+    def get_features(self, X, kmean, k):
         
-        return results
+        hist = np.zeros((len(X), k))
+        for idx, des in enumerate(tqdm(X, desc='Building histogram')):
+            pred = kmean.predict(des)
+            hist[idx] += np.bincount(pred, minlength=k)
+            
+        
+        return hist
