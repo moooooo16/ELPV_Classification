@@ -70,7 +70,7 @@ class SIFT():
     def get_features(self, X, kmean, k):
         
         hist = np.zeros((len(X), k))
-        for idx, des in enumerate(tqdm(X, desc='Building histogram')):
+        for idx, des in enumerate(tqdm(X, desc='Building histogram for k = {k}')):
             pred = kmean.predict(des)
             hist[idx] += np.bincount(pred, minlength=k)
             

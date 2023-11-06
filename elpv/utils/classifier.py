@@ -1,7 +1,14 @@
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
+import numpy as np
 
-def grid_search(X_train, y_train, X_test, y_test, estimator, params, cv, scoring, verbose=3, n_jobs=-1, return_train_score=True):
+
+def grid_search(X_train, y_train, 
+                estimator, params, scoring, 
+                k, classes, logger,
+                verbose=0, n_jobs=-1, cv=5, 
+                return_train_score=True):
+    
     clf = GridSearchCV(estimator, params,
                                cv=cv,
                                scoring=scoring,
@@ -11,17 +18,17 @@ def grid_search(X_train, y_train, X_test, y_test, estimator, params, cv, scoring
     clf.fit(X_train, y_train)
     
     best_clf = clf.best_estimator_
-    print(f'Best Score: {clf.best_score_} use {clf.best_params_}')
-    
-    result = clf.cv_results_
-    
-    # Test prediction
-    pred = best_clf.predict(X_test)
 
-    acc, conf_mat = get_report(y_test, pred)
-        
+    value, _ = np.unique(y_train, return_counts=True)
+    print(f'Class: {value} Val Score: {clf.best_score_:.2f} use {clf.best_params_}')
+
+    mean_train_score = clf.cv_results_['mean_train_score']
+    mean_test_score = clf.cv_results_['mean_test_score']
+    params = clf.cv_results_['params']
     
-    return result, best_clf, pred, acc, conf_mat
+    logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
+
+    return best_clf
 
 def get_report(y_test, pred):
     report = classification_report(y_test, pred, zero_division=0)

@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import logging
 
 def plot_img_and_hist(img, prob=None, types=None) -> None:
     _, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -20,25 +21,21 @@ def strech_img(img) -> np.ndarray:
 
     return np.clip((img-c) * (255/(d-c)), 0, 255).astype(np.uint8)
 
-def combine_labels(prob, types):
+
+def my_logger(path):
     
-    prob_matching = {
-        0.0: 0,
-        0.3333333333333333: 1,
-        0.6666666666666666: 2,
-        1.0: 3
-    }
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
     
-    types_matching = {
-        "poly": 0,
-        'mono': 1   
-    }
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%m-%d %H:%M')
+
+    file_handler = logging.FileHandler(path)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
     
-    labels = []
-    
-    for p, t in zip(prob, types):
-        labels.append(prob_matching[p] if types_matching[t] else 4 + prob_matching[p])
-    
-    count, unique = np.unique(labels, return_counts=True)
-    print(count, unique)
-    return labels
+    logger.addHandler(file_handler)
+
+    return logger
