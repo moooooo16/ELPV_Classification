@@ -70,9 +70,13 @@ class SIFT():
     def get_features(self, X, kmean, k):
         
         hist = np.zeros((len(X), k))
-        for idx, des in enumerate(tqdm(X, desc='Building histogram for k = {k}')):
+        for idx, des in enumerate(tqdm(X, desc=f'Building histogram for k = {k}')):
             pred = kmean.predict(des)
             hist[idx] += np.bincount(pred, minlength=k)
             
         
         return hist
+
+    def draw(self, kp, img):
+        out = cv.drawKeypoints(img, kp, None, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        return out

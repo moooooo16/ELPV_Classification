@@ -22,14 +22,13 @@ def strech_img(img) -> np.ndarray:
     return np.clip((img-c) * (255/(d-c)), 0, 255).astype(np.uint8)
 
 
-def my_logger(path):
+def my_logger(path, name):
     
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-
-    logger = logging.getLogger()
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.FileHandler)]
+
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%m-%d %H:%M')
 
     file_handler = logging.FileHandler(path)

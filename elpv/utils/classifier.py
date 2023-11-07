@@ -1,5 +1,6 @@
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
+from scipy import stats
 import numpy as np
 
 
@@ -25,8 +26,8 @@ def grid_search(X_train, y_train,
     mean_train_score = clf.cv_results_['mean_train_score']
     mean_test_score = clf.cv_results_['mean_test_score']
     params = clf.cv_results_['params']
-    
-    logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
+    if logger:
+        logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
 
     return best_clf
 
@@ -40,3 +41,97 @@ def get_report(y_test, pred):
     print()
     
     return  acc, conf_mat
+
+def down_sampling(total_classes, X_train, y_train, clf, clfs, param,  k, logger=None):
+
+    for i in total_classes:
+        for j in total_classes:
+
+            if j <= i:
+                continue
+            
+            
+            postive = np.where(y_train == i)[0]
+            negative = np.where(y_train == j)[0]
+            
+            if len(postive) > len(negative):
+                postive = np.random.choice(postive, len(negative), replace=False)
+            elif len(postive) < len(negative):
+                negative = np.random.choice(negative, len(postive), replace=False)
+
+            
+            X_train_selected = X_train[np.concatenate([postive, negative])]
+            y_train_selected = y_train[np.concatenate([postive, negative])]
+            svm = clf()
+            best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i, j), scoring='accuracy', logger = logger)
+            clfs.append(best)
+            
+    return clfs
+    
+def vote(X_test, clfs, predictions):
+    for clf in clfs:
+        pred = clf.predict(X_test)
+        predictions.append(pred)
+    predictions = np.array(predictions)
+    votes, counts = stats.mode(predictions, axis=0)
+        
+    
+    return predictions, votes, counts
+
+def smote(minority, y_minority, percentage, clf, n_neighbors=5):
+    
+    synthetic = []
+    counter = 0
+    if percentage < 100:
+        minority = np.random.choice(minority, int(len(minority) * percentage / 100), replace=False)
+        percentage = 100
+        
+    percentage = int(percentage / 100)
+    
+    for data in minority:
+        
+        knn = clf(n_neighbors=n_neighbors).fit(minority, y_minority)
+  
+        _, nnarray = knn.kneighbors(data.reshape(1,-1), n_neighbors+1)
+        nnarray = nnarray[0][1:] 
+        for i in range(percentage):
+     
+            selected = np.random.choice(nnarray, 1)
+            w = np.random.rand()
+            new = data + w * (minority[selected[0]] - data)
+
+            # print(f'Target: {data}, knn: {nnarray},selected index: {selected}, Selected neighbor: {minority[selected[0]]}, New: {new}')
+            synthetic.append(new)
+            counter += 1 
+    print(f'Generated {counter} synthetic samples.')
+    synthetic = np.array(synthetic)
+    return synthetic
+
+def up_sampling(total_classes, X_train, y_train, clf, clfs, param, k, logger, knn):
+    for i in total_classes:
+        for j in total_classes:
+            if j <= i:
+                continue
+            postive = np.where(y_train == i)[0]
+            negative = np.where(y_train == j)[0]
+            synthetic = None
+            synthetic_y = None
+            
+            if len(postive) > len(negative):
+                synthetic = smote(X_train[negative], np.zeros(len(negative)), percentage=len(postive)/len(negative)*100, clf = knn, n_neighbors=5)
+                synthetic_y = np.ones(len(synthetic)) * j
+                
+            elif len(negative) > len(postive):
+                synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=5)
+                synthetic_y = np.ones(len(synthetic)) * i
+                
+            X_train_selected = X_train[np.concatenate((postive, negative))]
+            y_train_selected = y_train[np.concatenate((postive, negative))]
+            
+            X_train_selected = np.concatenate((X_train_selected, synthetic))
+            y_train_selected = np.concatenate((y_train_selected, synthetic_y))
+            
+            svm = clf()
+            best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i, j), scoring='accuracy', logger = logger)
+            clfs.append(best)
+    return clfs
