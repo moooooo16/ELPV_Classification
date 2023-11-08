@@ -67,3 +67,23 @@ K = 896
 KNN: 0.42
 SVM: 0.71
 RF: 0.68
+
+
+# Features
+
+0. Mono + 0.0
+   - Little verticle line
+   - 3 horizontal lines
+     - Dashed or solid
+   - 4 Corners are black
+   - No bolbs or cluster of shade
+1. Mono + 0.33
+   - Small scratch/shade
+   - 3 Horizontal lines
+   - 
+2. Mono + 0.66
+3. Mono + 1.0
+4. Poly + 0.0
+5. Poly + 0.33
+6. Poly + 0.66
+7. Poly + 1.0

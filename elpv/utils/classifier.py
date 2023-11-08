@@ -17,17 +17,24 @@ def grid_search(X_train, y_train,
                                n_jobs=n_jobs,
                                return_train_score=return_train_score)
     clf.fit(X_train, y_train)
-    
+
     best_clf = clf.best_estimator_
-
-    value, _ = np.unique(y_train, return_counts=True)
-    print(f'Class: {value} Val Score: {clf.best_score_:.2f} use {clf.best_params_}')
-
     mean_train_score = clf.cv_results_['mean_train_score']
     mean_test_score = clf.cv_results_['mean_test_score']
     params = clf.cv_results_['params']
+    
+    
+  
+    value, _ = np.unique(y_train, return_counts=True)
+    print(f'Class: {value} Val Score: {clf.best_score_:.2f} use {clf.best_params_}')
+    
     if logger:
-        logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
+        if k is None and classes is None:
+             logger.info(f'{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
+        elif k is None and classes is not None:
+             logger.info(f'{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
+        elif k is not None and classes is not None:
+             logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
 
     return best_clf
 
@@ -42,8 +49,10 @@ def get_report(y_test, pred):
     
     return  acc, conf_mat
 
-def down_sampling(total_classes, X_train, y_train, clf, clfs, param,  k, logger=None):
-
+def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
+    
+    clfs = []
+    
     for i in total_classes:
         for j in total_classes:
 
@@ -79,12 +88,13 @@ def vote(X_test, clfs, predictions):
     return predictions, votes, counts
 
 def smote(minority, y_minority, percentage, clf, n_neighbors=5):
-    
+
     synthetic = []
     counter = 0
     if percentage < 100:
         minority = np.random.choice(minority, int(len(minority) * percentage / 100), replace=False)
         percentage = 100
+
         
     percentage = int(percentage / 100)
     
@@ -107,7 +117,9 @@ def smote(minority, y_minority, percentage, clf, n_neighbors=5):
     synthetic = np.array(synthetic)
     return synthetic
 
-def up_sampling(total_classes, X_train, y_train, clf, clfs, param, k, logger, knn):
+def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
+    
+    clfs = []
     for i in total_classes:
         for j in total_classes:
             if j <= i:
@@ -135,3 +147,43 @@ def up_sampling(total_classes, X_train, y_train, clf, clfs, param, k, logger, kn
             best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i, j), scoring='accuracy', logger = logger)
             clfs.append(best)
     return clfs
+
+def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn, n_neighbors=5):
+    clfs = []
+    for i in total_classes:
+        
+        synthetic = []
+        synthetic_y = []
+        binary_y_train = np.where(y_train == i, i, -1)
+        
+        postive = np.where(binary_y_train == i)[0]
+        negative = np.where(binary_y_train == -1)[0]
+        
+        # positive  < negative
+        if len(postive) < len(negative):
+            
+            synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=n_neighbors)
+            synthetic_y = np.ones(len(synthetic)) * i
+        
+        X_train_selected = X_train[np.concatenate((postive, negative))]
+        y_train_selected = binary_y_train[np.concatenate((postive, negative))]
+        
+        if len(synthetic) > 0:
+            X_train_selected = np.concatenate((X_train_selected, synthetic))
+            y_train_selected = np.concatenate((y_train_selected, synthetic_y))
+        
+        print(f'Trainig on: {np.unique(y_train_selected, return_counts=True)}')
+        
+        svm = clf()
+        best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i,-1), scoring='accuracy', logger = logger)
+        clfs.append(best)
+        
+    return clfs
+
+def distance_vote(X_test, clfs, predictions):
+    
+    distance =  np.vstack([clf.decision_function(X_test) for clf in clfs])
+    pred = np.argmax(distance, axis = 0)
+
+    
+    return distance, pred
