@@ -148,7 +148,7 @@ def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
             clfs.append(best)
     return clfs
 
-def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn, n_neighbors=5):
+def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn, n_neighbors=5, verbose=0):
     clfs = []
     for i in total_classes:
         
@@ -175,12 +175,12 @@ def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, log
         print(f'Trainig on: {np.unique(y_train_selected, return_counts=True)}')
         
         svm = clf()
-        best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i,-1), scoring='accuracy', logger = logger)
+        best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i,-1), scoring='accuracy', logger = logger, verbose = verbose)
         clfs.append(best)
         
     return clfs
 
-def distance_vote(X_test, clfs, predictions):
+def distance_vote(X_test, clfs):
     
     distance =  np.vstack([clf.decision_function(X_test) for clf in clfs])
     pred = np.argmax(distance, axis = 0)

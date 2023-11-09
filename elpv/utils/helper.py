@@ -1,11 +1,14 @@
 from matplotlib import pyplot as plt
-import numpy as np
 import logging
 
-def plot_img_and_hist(img, prob=None, types=None) -> None:
+
+def plot_img_and_hist(img,prob=None, types=None) -> None:
+
     _, axes = plt.subplots(1, 2, figsize=(10, 5))
     
+    
     axes[0].imshow(img, cmap='gray')
+
     axes[1].hist(img.ravel(), bins=256)
     
     axes[0].set_axis_off()
@@ -13,13 +16,6 @@ def plot_img_and_hist(img, prob=None, types=None) -> None:
     
     if prob is not None and types is not None:
         axes[0].set_title(f'Prob: {prob}\nTypes: {types}')
-    
-
-def strech_img(img) -> np.ndarray:
-    c = np.min(img)
-    d = np.max(img)
-
-    return np.clip((img-c) * (255/(d-c)), 0, 255).astype(np.uint8)
 
 
 def my_logger(path, name):
@@ -38,3 +34,11 @@ def my_logger(path, name):
     logger.addHandler(file_handler)
 
     return logger
+
+
+def compar_img(orimg, newimg, labels):
+    _, axes = plt.subplots(1, 2, figsize=(10, 5))
+    
+    axes[0].imshow(orimg, cmap='gray')
+    axes[1].imshow(newimg, cmap='gray')
+    plt.show()

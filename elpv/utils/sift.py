@@ -22,6 +22,7 @@ class SIFT():
                 for processing_func in processing_funcs:
                     img = processing_func(img)
                     
+
                 self.images.append(img)
         else:
             self.images = [cv.imread(os.path.join(img_dir, img), cv.IMREAD_GRAYSCALE) for img in self.img_path]
