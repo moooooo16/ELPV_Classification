@@ -2,9 +2,8 @@ from skimage.feature import hog
 import cv2 as cv
 import os
 from tqdm import tqdm
-from typing import Callable, Optional, List, Tuple
+from typing import Tuple
 import numpy as np
-from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 
 class FeatureExtraction():
@@ -51,17 +50,13 @@ class FeatureExtraction():
         
         return self.images, self.label
     
-    def preprocess(self, data, preprocess_funcs):
+    def preprocess(self, data, preprocess_pipeline):
         out = []
         for image in tqdm(data,  desc='Pre-processing images'):
     
-            for processing_func in preprocess_funcs:
-                image = processing_func(image)
-                if self.flag:
-                    func_name = processing_func.func.__name__ if isinstance(processing_func, partial) else processing_func.__name__
-                    print(f"After {func_name}: range {image.min()} to {image.max()}")
-                    
-            self.flag = False
+            for preprocess_step in preprocess_pipeline:
+                processing_func, func_params = preprocess_step
+                image = processing_func(image, **func_params)
                     
             out.append(image)
             

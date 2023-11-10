@@ -5,15 +5,11 @@ import logging
 def plot_img_and_hist(img,prob=None, types=None) -> None:
 
     _, axes = plt.subplots(1, 2, figsize=(10, 5))
-    
-    
     axes[0].imshow(img, cmap='gray')
-
     axes[1].hist(img.ravel(), bins=256)
-    
     axes[0].set_axis_off()
     # axes[1].set_axis_off()
-    
+
     if prob is not None and types is not None:
         axes[0].set_title(f'Prob: {prob}\nTypes: {types}')
 
@@ -41,4 +37,7 @@ def compar_img(orimg, newimg, labels):
     
     axes[0].imshow(orimg, cmap='gray')
     axes[1].imshow(newimg, cmap='gray')
+    if labels is not None:
+        axes[0].set_title(f'Prob: {labels[0]}\nTypes: {labels[1]}')
     plt.show()
+    

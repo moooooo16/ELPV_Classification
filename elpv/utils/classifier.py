@@ -4,39 +4,6 @@ from scipy import stats
 import numpy as np
 
 
-def grid_search(X_train, y_train, 
-                estimator, params, scoring, 
-                k, classes, logger,
-                verbose=0, n_jobs=-1, cv=5, 
-                return_train_score=True):
-    
-    clf = GridSearchCV(estimator, params,
-                               cv=cv,
-                               scoring=scoring,
-                               verbose=verbose,
-                               n_jobs=n_jobs,
-                               return_train_score=return_train_score)
-    clf.fit(X_train, y_train)
-
-    best_clf = clf.best_estimator_
-    mean_train_score = clf.cv_results_['mean_train_score']
-    mean_test_score = clf.cv_results_['mean_test_score']
-    params = clf.cv_results_['params']
-    
-    
-  
-    value, _ = np.unique(y_train, return_counts=True)
-    print(f'Class: {value} Val Score: {clf.best_score_:.2f} use {clf.best_params_}')
-    
-    if logger:
-        if k is None and classes is None:
-             logger.info(f'{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
-        elif k is None and classes is not None:
-             logger.info(f'{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
-        elif k is not None and classes is not None:
-             logger.info(f'{k},{classes[0]},{classes[1]},{clf.best_score_:.2f},{clf.best_params_},{np.mean(mean_train_score):.2f},{np.mean(mean_test_score):.2f}')
-
-    return best_clf
 
 def get_report(y_test, pred):
     report = classification_report(y_test, pred, zero_division=0)
@@ -148,8 +115,31 @@ def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
             clfs.append(best)
     return clfs
 
-def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn, n_neighbors=5, verbose=0):
+def grid_search(X_train, y_train, 
+                estimator, model_params, scoring, refit= False,
+                verbose=3, n_jobs=-1, cv=3, return_train_score=True,
+                k = None, classes = None, logger = None):
+    
+    clf = GridSearchCV(estimator(), model_params,
+                               cv=cv,
+                               scoring=scoring, refit = refit,
+                               verbose=verbose,
+                               n_jobs=n_jobs,
+                               return_train_score=return_train_score)
+    clf.fit(X_train, y_train)
+
+    best_clf = clf.best_estimator_
+    
+    value, _ = np.unique(y_train, return_counts=True)
+    print(f'Class: {value} Val Score: {clf.best_score_:.2f} use {clf.best_params_}')
+    
+
+    return clf.cv_results_, best_clf
+
+
+def one_vs_other_up_sampling(X_train, y_train,total_classes, grid_param, knn, n_neighbors=5):
     clfs = []
+    results = []
     for i in total_classes:
         
         synthetic = []
@@ -174,11 +164,12 @@ def one_vs_other_up_sampling(total_classes, X_train, y_train, clf, param, k, log
         
         print(f'Trainig on: {np.unique(y_train_selected, return_counts=True)}')
         
-        svm = clf()
-        best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i,-1), scoring='accuracy', logger = logger, verbose = verbose)
-        clfs.append(best)
         
-    return clfs
+        result, best = grid_search( X_train_selected, y_train_selected, **grid_param)
+        clfs.append(best)
+        results.append(result)
+        
+    return results, clfs
 
 def distance_vote(X_test, clfs):
     
@@ -187,3 +178,29 @@ def distance_vote(X_test, clfs):
 
     
     return distance, pred
+
+def print_misclassifications(y_test, pred, distance):
+    distance = np.round(distance, 2)
+    misclassified_indices = np.where(pred != y_test)[0]
+    success_count = 0
+    fail_count = 0
+
+    for index in misclassified_indices:
+        true_class_score = distance[y_test[index], index]
+        predicted_class_score = distance[pred[index], index]
+        if true_class_score > 0 and true_class_score > predicted_class_score:
+            outcome = "Success"
+            success_count += 1
+        else:
+            outcome = "Failed"
+            fail_count += 1
+
+        print(f"Index {index}:")
+        print(f"True: {y_test[index]}")
+        print(f"Predicted: {pred[index]}")
+        print(f"Scores {distance[:, index]}")
+        print(f"Outcome {outcome}")
+        print()
+
+    print(f"Successful: {success_count}")
+    print(f"Failed : {fail_count}")
