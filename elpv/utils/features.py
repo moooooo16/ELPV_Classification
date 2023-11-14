@@ -5,9 +5,11 @@ from tqdm import tqdm
 from typing import Tuple
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Pool
+from sklearn.model_selection import KFold
 
 class FeatureExtraction():
-    def __init__(self, img_dir, img_path, label) -> None:
+    def __init__(self, img_dir, img_path, label, l = 15) -> None:
         self.img_dir = img_dir
         self.img_path = img_path
         self.label = np.array(label)
@@ -15,8 +17,22 @@ class FeatureExtraction():
  
             self.images = np.array(list(executor.map(self.load_image, [img_dir]*len(img_path), img_path)))
         self.flag = True
-        self.sift = cv.SIFT_create()
+        self.sift = None
+        self.ses = self.create_SE(l)
 
+    def create_SE(self, l=15):
+        
+        se45 = np.zeros((l, l), dtype=np.uint8)
+        for i in range(l):
+            se45[i, l-i-1] = 1
+        
+        se135 = np.rot90(se45.copy(), 1)
+        
+        se90 = np.zeros((l, l), dtype=np.uint8)
+        for i in range(l):
+            se90[i, l//2] = 1
+        
+        return se45, se90, se135
 
     def load_image(self, img_dir, img_path):
         return cv.imread(os.path.join(img_dir, img_path), cv.IMREAD_GRAYSCALE)
@@ -50,7 +66,28 @@ class FeatureExtraction():
         
         return self.images, self.label
     
+    def preprocess_single_image(self, args):
+        image, preprocess_pipeline = args
+        for preprocess_step in preprocess_pipeline:
+            processing_func, func_params = preprocess_step
+            image = processing_func(image, **func_params)
+        return image
+    
     def preprocess(self, data, preprocess_pipeline):
+        if len(preprocess_pipeline) == 0:
+            return data
+    
+        args = [(image, preprocess_pipeline) for image in data]
+
+  
+        with Pool() as pool:
+   
+            results = list(tqdm(pool.imap(self.preprocess_single_image, args), total=len(args), desc='Pre-processing images'))
+
+        self.images = np.array(results)
+        return self.images
+
+    def old_preprocess(self, data, preprocess_pipeline):
         out = []
         for image in tqdm(data,  desc='Pre-processing images'):
     
@@ -88,6 +125,8 @@ class FeatureExtraction():
             return np.array(hog_des)
         
     def get_sift_descriptor(self,data, mask = None) -> Tuple[list, list, list]:
+        if self.sift == None:
+            self.sift = cv.SIFT_create()
         descriptors = []
         empty_des = []
         kps = []
@@ -144,3 +183,61 @@ class FeatureExtraction():
             
         
         return hist
+    
+    
+    def kaze_detetion(self):
+        
+        pass
+    
+    
+    def vgg_descriptor(self):
+        pass    
+    
+    def calculate_threshold(self, kf, X_train, y_train, indices):
+        
+        non_defecet_y = y_train[indices]
+        non_defecet_X = X_train[indices]
+        
+        mean_error = []
+        std_error = []
+
+        for i, (train_index, test_index) in enumerate(kf.split(non_defecet_X, non_defecet_y)):
+            train_x = non_defecet_X[train_index]
+            test_x = non_defecet_X[test_index]
+
+            X = train_x.reshape(train_x.shape[0], -1)
+            X_test = test_x.reshape(test_x.shape[0], -1)
+
+            errors = self.calculate_error(X, X_test)
+
+            mean_error.append(np.mean(errors))
+            std_error.append(np.std(errors))
+            
+            print(f'Fold {i+1} mean error: {np.mean(errors)}, std error: {np.std(errors)}')
+        
+        return np.mean(mean_error), np.mean(std_error)
+    
+    def calculate_error(self, X, y):
+        
+        X = X.reshape(X.shape[0], -1)
+        y = y.reshape(y.shape[0], -1)
+        
+
+        X_plus = np.linalg.pinv(X)
+
+        y_hat = np.dot(np.dot(y, X_plus), X)
+  
+        norm_y = np.linalg.norm(y, axis=1)
+        nomr_y_hat = np.linalg.norm(y_hat, axis=1)
+        nomr_y_hat[nomr_y_hat == 0] = np.finfo(float).eps
+        
+        C = norm_y / nomr_y_hat
+ 
+        C = C.reshape(-1, 1)
+
+
+        errors = np.linalg.norm(y - C * y_hat, axis=1)
+        
+
+        return errors
+        

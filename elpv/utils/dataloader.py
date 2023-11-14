@@ -11,7 +11,7 @@ def get_paths():
 
 ROOT_PATH, DATA_PATH, OUT_PATH = get_paths()
 
-def load_data(data_path=DATA_PATH):
+def load_data(data_path=DATA_PATH, num_labels = 8):
     if data_path is None:
         raise Exception('Data path is not set')
     # img_dir = os.path.join(data_path, 'images')
@@ -19,13 +19,13 @@ def load_data(data_path=DATA_PATH):
                          dtype=['|S19', '<f8', '|S4'], 
                          names=['path', 'probability', 'type'])
     
-    label = combine_labels(data['probability'], np.char.decode(data['type']))
+    label = combine_labels(data['probability'], np.char.decode(data['type']), num_labels)
     
     return  np.char.decode(data['path']), data['probability'], np.char.decode(data['type']), label
 
 
 
-def combine_labels(prob, types):
+def combine_labels(prob, types, num_labels):
     
     prob_matching = {
         0.0: 0,
@@ -41,9 +41,13 @@ def combine_labels(prob, types):
     
     labels = []
     
-    for p, t in zip(prob, types):
-        labels.append(prob_matching[p] if types_matching[t] else 4 + prob_matching[p])
-    
+    if num_labels == 8: 
+        for p, t in zip(prob, types):
+            labels.append(prob_matching[p] if types_matching[t] else 4 + prob_matching[p])
+    elif num_labels == 4:
+        for p, t in zip(prob, types):
+            labels.append(prob_matching[p])
+
     count, unique = np.unique(labels, return_counts=True)
     print(count, unique)
     return labels

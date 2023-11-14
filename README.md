@@ -87,3 +87,52 @@ RF: 0.68
 5. Poly + 0.33
 6. Poly + 0.66
 7. Poly + 1.0
+
+
+# Method 1
+
+- Use ICA to find a set of representative basis images that can best describe various defect-free solar cell sub-images
+- Each other image is presented as a linear combination of these basis images
+- In detection, feature extraction and image construction from the basis images are used to evaluate the preesence/absence of defects in the inspection image.
+
+- Preprocessing:
+  - Morphological smoothing
+    - Design three structuring elements in the directions of 45, 90, and 135 degrees.
+    - Each length L pixels and width 1 pixel
+    - Random dark region dimension < L < defect length 
+    - Dark regions can be smoothed, defects can be preseved.
+    - L is givin by **13** in the paper.
+  - For a given pixel point with gray level , the gray levels in each of the three SEs are accumulated.
+  - ![image](/project/elpv/doc/L_function.png)
+  - ![L_function2](/project/elpv/doc/L_function2.png)
+  - Select $\theta-SE = argmin(S_{45}, S_{90}, S_{135})$
+    - This representing minimum accumulated magnitude amoung 3 dirictions 
+  - Apply gray-level diliation (local maximum gray level) is applie to the image with selected SE in direction $\theta$
+  - If $\theta-SE$ contains all defect points, the dilated value will be still small for dark region, other wise  
+  - Horizontal bus bar should be removed.
+    - OP methioned didnt include 0 degree SE, but I think it should be included.
+- ICA model
+  - Mixture signals X can be represent as $X = A \cdot S$
+  - A is unknown mixing matrix, S is unknown source matrix
+  - ICA is obtained by finding demixing matrix W such that $U = W \cdot X$
+    - where U is the independent components(IC)
+    - fastICA can be used.
+- Find "Basic images"
+  - Randomly chosen from the training set(free from defect)
+  - Reshape each image to 1 D row vector in $X$
+  - X contains B samples, X is shape of (B,  N)
+- Represent test image with b
+  - 1D test image is y
+  - $y  = b \cdot U = \sum_{i=1}^{B}b_i \cdot u_i$
+  - b is coefficient vector of the linear combination, U is basic images
+  - b = (b1, b2, ..., bB)
+  - b is obtained by solveing $b = y \cdot U^+$
+  - $U^+ = U^T(U \cdot U^T)^{-1}$
+- Deterin the defects
+  - Use cosine distance to evaluate similarity between 
+  - ![cosine](/project/elpv/doc/cos_simi.png)
+  - $b_i  = x_i \cdot U^+$
+  - if cosine distance is zero -> identical
+  - final distance is smallest distance among all basic images
+  - If distance is > than threshold, it is defect.
+  - 

@@ -120,3 +120,42 @@ def my_otsu(img):
             best_sigma = sigma
             best_threshold = threshold
     return (img > best_threshold).astype(np.uint8) * 255
+
+def convole_sum(img, se):
+
+   m, n = se.shape
+   padding = np.pad(img, m//2+1, mode='constant', constant_values=0)
+
+   y, x = padding.shape
+
+   new_image = np.zeros((y - m + 1, x - n + 1))
+   
+   for i in range(y-m+1):
+      for j in range(x-m + 1):
+         # print(i, i + m , j, j + m)
+         sm =  np.sum(padding[i:i+m, j:j+m]*se)
+            
+         new_image[i, j] = sm
+            
+   return np.sum(new_image)
+
+def morph_smoothing(img, ses):
+    m, n = ses[0].shape
+    padding = np.pad(img, m//2, mode='constant', constant_values=0)
+    y, x = padding.shape
+    new_image = np.zeros(img.shape)
+    
+    for i in range(y-m+1):
+        for j in range(x-n+1):
+            
+            max_pixle = []
+            min_gray_level = []
+            for se in ses:
+                gray_level = np.sum(padding[i:i+m, j:j+n] * se)
+                local_maximum = np.max(padding[i:i+m, j:j+n] * se)
+                max_pixle.append(local_maximum)
+                min_gray_level.append(gray_level)
+                
+            new_image[i, j] = max_pixle[np.argmin(min_gray_level)]
+            
+    return new_image
