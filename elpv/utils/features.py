@@ -130,15 +130,15 @@ class FeatureExtraction():
 
     
     
-    def build_sift_cluster(self,kmean_clf, descriptors, ks, state, init = 'k-means++', n_init = 10, max_iter = 300, tol = 1e-4):
+    def build_sift_cluster(self,descriptors, kmean_clf,  ks, state, init = 'k-means++', n_init = 10, max_iter = 300, tol = 1e-4):
         hists = {}
         models = {}
         for k in ks:
             print(f'Calculating kmeans for k = {k}')
             hist = np.zeros((len(descriptors), k))
             
-            
-            
+            temp = descriptors.copy()
+            temp = [des for des in temp if des is not None]
             kmeans = kmean_clf(n_clusters=k, 
                             random_state=state,
                             n_init = n_init,
@@ -146,10 +146,10 @@ class FeatureExtraction():
                             max_iter=max_iter,
                             tol = tol)
             
-            kmeans.fit(np.concatenate(descriptors.copy(), axis=0))
+            kmeans.fit(np.concatenate(temp, axis=0))
             
             for idx, des in enumerate(tqdm(descriptors, desc=f'Building histogram for k = {k}')):
-                if des.shape[0] == 0:
+                if des is None:
                     print(f"Empty descriptor at index {idx}")
                     continue
                 pred = kmeans.predict(des)
@@ -164,7 +164,7 @@ class FeatureExtraction():
         
         hist = np.zeros((len(descriptor), k))
         for idx, des in enumerate(tqdm(descriptor, desc=f'Building histogram for k = {k}')):
-            if des.shape[0] == 0:
+            if des is None:
                 print(f"Empty descriptor at index {idx}")
                 continue
             pred = kmean.predict(des)

@@ -1,41 +1,25 @@
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, ConfusionMatrixDisplay, f1_score
 from sklearn.model_selection import GridSearchCV
 from scipy import stats
 import numpy as np
+import matplotlib.pyplot as plt
 
 
-
-def get_report(y_test, pred):
+def get_report(y_test, pred, name = None):
  
+    print('-'*100)
+    if name is not None:
+        print(f'Classification report for {name}')
+    
     report = classification_report(y_test, pred, zero_division=0)
     acc = accuracy_score(y_test, pred)
-    conf_mat = confusion_matrix(y_test, pred)
-    
-    print("-"*100)
-    print("Confusion Matrix")
-    print(conf_mat)
-    print()
-    
-    if np.unique(y_test, return_counts=False).shape[0] == 8:
-        print("Confusion Matrix for Mono classes")
-        upper_left = conf_mat[0:4, 0:4]
-        print(upper_left)
-        print()
-        print("Confusion Matrix for Poly classes")
-        lower_right = conf_mat[4:, 4:]
-        print(lower_right)
-        print()
-        
-        print("Confusion Matrix for Mono and Poly classes")
-        total = upper_left + lower_right
-        print(total)
-        print()
-
+    f1 = f1_score(y_test, pred, average='macro')
     print(report)
+    ConfusionMatrixDisplay.from_predictions(y_test, pred)
+    plt.show()
     print()
-    print(f'Overall Test Accuracy: {acc:.2f}')
-    print()
-    print('-'*100)
+    
+    return acc, f1
 
 
 def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
@@ -66,7 +50,8 @@ def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
             
     return clfs
     
-def vote(X_test, clfs, predictions):
+def vote(X_test, clfs):
+    predictions = []
     for clf in clfs:
         pred = clf.predict(X_test)
         predictions.append(pred)
@@ -97,8 +82,8 @@ def smote(minority, y_minority, percentage, clf, n_neighbors=5):
      
             selected = np.random.choice(nnarray, 1)
             w = np.random.rand()
-            new = data + int(w * (minority[selected[0]] - data))
-
+            new = data + w * (minority[selected[0]] - data)
+            new = new.astype(int)
             # print(f'Target: {data}, knn: {nnarray},selected index: {selected}, Selected neighbor: {minority[selected[0]]}, New: {new}')
             synthetic.append(new)
             counter += 1 
@@ -106,7 +91,7 @@ def smote(minority, y_minority, percentage, clf, n_neighbors=5):
     synthetic = np.array(synthetic)
     return synthetic
 
-def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
+def up_sampling(X_train, y_train, total_classes, grid_param, knn, n_neighbors=5):
     
     clfs = []
     for i in total_classes:
@@ -119,11 +104,11 @@ def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
             synthetic_y = None
             
             if len(postive) > len(negative):
-                synthetic = smote(X_train[negative], np.zeros(len(negative)), percentage=len(postive)/len(negative)*100, clf = knn, n_neighbors=5)
+                synthetic = smote(X_train[negative], np.zeros(len(negative)), percentage=len(postive)/len(negative)*100, clf = knn, n_neighbors=n_neighbors)
                 synthetic_y = np.ones(len(synthetic)) * j
                 
             elif len(negative) > len(postive):
-                synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=5)
+                synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=n_neighbors)
                 synthetic_y = np.ones(len(synthetic)) * i
                 
             X_train_selected = X_train[np.concatenate((postive, negative))]
@@ -132,8 +117,8 @@ def up_sampling(total_classes, X_train, y_train, clf, param, k, logger, knn):
             X_train_selected = np.concatenate((X_train_selected, synthetic))
             y_train_selected = np.concatenate((y_train_selected, synthetic_y))
             
-            svm = clf()
-            best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i, j), scoring='accuracy', logger = logger)
+ 
+            result, best = grid_search( X_train_selected, y_train_selected, **grid_param)
             clfs.append(best)
     return clfs
 
@@ -248,4 +233,9 @@ def mono_poly_split(X, y):
     mono_y = y[y < 4]
     poly_y = y[y > 3]
     
-    return mono_X, poly_X, mono_y, poly_y
+    return mono_X, poly_X, mono_y, poly_y-4
+
+def combine_mono_poly(mono_X, poly_X, mono_y, poly_y):
+    X = np.concatenate((mono_X, poly_X))
+    y = np.concatenate((mono_y, poly_y))
+    return X, y
