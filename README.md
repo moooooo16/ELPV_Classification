@@ -34,8 +34,10 @@ This folder contains all main logic of the project.
 This folder contains all utility functions.
 
 - **classifier.py** contains all classifier used in the project.
-  - `get_report` -> print classification report and conf mat
-  - `down_sampling` and `vote` -> down sampling methods and voting after down sampling
+  - `get_report`
+    - print classification report and conf mat
+  - `down_sampling` and `vote` 
+    - down sampling methods and voting after down sampling
   - `up_sampling` with `smote`, `one_vs_other_up_sampling` and `distance_vote`
     - up sampling use SMOTE to generate new data
     - up sampling use ovo and one vs other method to generate new data
