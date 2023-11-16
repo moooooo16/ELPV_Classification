@@ -41,3 +41,11 @@ def compar_img(orimg, newimg, labels):
         axes[0].set_title(f'Prob: {labels[0]}\nTypes: {labels[1]}')
     plt.show()
     
+def plot_reconstruct(errors, thresh_mean, thresh_std):
+    int_errors = errors.astype(int)
+    plt.hist(errors, bins=100, range = (min(int_errors), max(int_errors)))
+    plt.vlines(thresh_mean, 0, 40, colors='r', linestyles='dashed')
+    plt.vlines(thresh_mean + thresh_std, 0, 40, colors='r', linestyles='dashed')
+    plt.vlines(thresh_mean + 2* thresh_std, 0, 40, colors='r', linestyles='dashed')
+    plt.vlines(thresh_mean + 3* thresh_std, 0, 40, colors='r', linestyles='dashed')
+    plt.show()

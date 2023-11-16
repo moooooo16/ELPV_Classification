@@ -6,15 +6,37 @@ import numpy as np
 
 
 def get_report(y_test, pred):
+ 
     report = classification_report(y_test, pred, zero_division=0)
     acc = accuracy_score(y_test, pred)
     conf_mat = confusion_matrix(y_test, pred)
     
-    print('Testset Classification Report:')
-    print(report)
+    print("-"*100)
+    print("Confusion Matrix")
+    print(conf_mat)
     print()
     
-    return  acc, conf_mat
+    if np.unique(y_test, return_counts=False).shape[0] == 8:
+        print("Confusion Matrix for Mono classes")
+        upper_left = conf_mat[0:4, 0:4]
+        print(upper_left)
+        print()
+        print("Confusion Matrix for Poly classes")
+        lower_right = conf_mat[4:, 4:]
+        print(lower_right)
+        print()
+        
+        print("Confusion Matrix for Mono and Poly classes")
+        total = upper_left + lower_right
+        print(total)
+        print()
+
+    print(report)
+    print()
+    print(f'Overall Test Accuracy: {acc:.2f}')
+    print()
+    print('-'*100)
+
 
 def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
     
@@ -71,11 +93,11 @@ def smote(minority, y_minority, percentage, clf, n_neighbors=5):
   
         _, nnarray = knn.kneighbors(data.reshape(1,-1), n_neighbors+1)
         nnarray = nnarray[0][1:] 
-        for i in range(percentage):
+        for _ in range(percentage):
      
             selected = np.random.choice(nnarray, 1)
             w = np.random.rand()
-            new = data + w * (minority[selected[0]] - data)
+            new = data + int(w * (minority[selected[0]] - data))
 
             # print(f'Target: {data}, knn: {nnarray},selected index: {selected}, Selected neighbor: {minority[selected[0]]}, New: {new}')
             synthetic.append(new)
@@ -204,3 +226,26 @@ def print_misclassifications(y_test, pred, distance):
 
     print(f"Successful: {success_count}")
     print(f"Failed : {fail_count}")
+    
+    
+def reconstruct_pred(errors, thresh_mean, thresh_std, size, isBinary = False):
+    prediction = np.zeros(size)
+    
+    
+    if isBinary:
+        prediction[errors > thresh_mean + 1* thresh_std] = 1
+    else:
+        prediction[errors > thresh_mean + 1* thresh_std] = 1
+        prediction[errors > thresh_mean + 2* thresh_std] = 2
+        prediction[errors > thresh_mean + 3* thresh_std] = 3
+    
+    return prediction
+
+def mono_poly_split(X, y):
+    mono_X = X[y < 4]
+    poly_X = X[y > 3]
+    
+    mono_y = y[y < 4]
+    poly_y = y[y > 3]
+    
+    return mono_X, poly_X, mono_y, poly_y

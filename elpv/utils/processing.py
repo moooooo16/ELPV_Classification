@@ -23,6 +23,18 @@ def lap_feature(img, dst, ksize):
 
     return cv.Laplacian(img, dst, ksize)
 
+def salt_pepper_noise(img, salt=0.5, threshold= 0.1):
+    out = img.copy()
+    rng = np.random.default_rng()
+    
+    flip = rng.random(img.shape) < threshold
+    s = rng.random(img.shape) < salt
+    p = ~s
+    
+    out[flip & s] = 255
+    out[flip & p] = 0
+    
+    return out
 
 def morpo_opening(img, kernel, iterations):
 
@@ -159,3 +171,5 @@ def morph_smoothing(img, ses):
             new_image[i, j] = max_pixle[np.argmin(min_gray_level)]
             
     return new_image
+
+    

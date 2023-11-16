@@ -20,20 +20,6 @@ class FeatureExtraction():
         self.sift = None
         self.ses = self.create_SE(l)
 
-    def create_SE(self, l=15):
-        
-        se45 = np.zeros((l, l), dtype=np.uint8)
-        for i in range(l):
-            se45[i, l-i-1] = 1
-        
-        se135 = np.rot90(se45.copy(), 1)
-        
-        se90 = np.zeros((l, l), dtype=np.uint8)
-        for i in range(l):
-            se90[i, l//2] = 1
-        
-        return se45, se90, se135
-
     def load_image(self, img_dir, img_path):
         return cv.imread(os.path.join(img_dir, img_path), cv.IMREAD_GRAYSCALE)
     
@@ -47,6 +33,9 @@ class FeatureExtraction():
         return X_train, X_test, y_train, y_test
         
     def augmentation(self, X_train, labels, augment_funcs):
+        if len(augment_funcs) == 0:
+            return X_train, labels
+        
         augment_x = []
         augment_y = []  
 
@@ -61,10 +50,10 @@ class FeatureExtraction():
         
         print(f'Augmenting done, added image: {len(augment_x)}')
         
-        self.images = np.concatenate((X_train, augment_x))
-        self.label = np.concatenate((labels, augment_y))
+        out_images = np.concatenate((X_train, augment_x))
+        out_labels = np.concatenate((labels, augment_y))
         
-        return self.images, self.label
+        return out_images, out_labels
     
     def preprocess_single_image(self, args):
         image, preprocess_pipeline = args
@@ -84,8 +73,8 @@ class FeatureExtraction():
    
             results = list(tqdm(pool.imap(self.preprocess_single_image, args), total=len(args), desc='Pre-processing images'))
 
-        self.images = np.array(results)
-        return self.images
+
+        return np.array(results)
 
     def old_preprocess(self, data, preprocess_pipeline):
         out = []
@@ -193,6 +182,19 @@ class FeatureExtraction():
     def vgg_descriptor(self):
         pass    
     
+    def create_SE(self, l=15):
+        
+        se45 = np.zeros((l, l), dtype=np.uint8)
+        for i in range(l):
+            se45[i, l-i-1] = 1
+        
+        se135 = np.rot90(se45.copy(), 1)
+        
+        se90 = np.zeros((l, l), dtype=np.uint8)
+        for i in range(l):
+            se90[i, l//2] = 1
+        
+        return se45, se90, se135
     def calculate_threshold(self, kf, X_train, y_train, indices):
         
         non_defecet_y = y_train[indices]
