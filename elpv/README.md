@@ -1,9 +1,3 @@
-# Usage
-
-Go to root directory of the project and
-Use `pip install -e .` to install the package in editable mode.
-
-
 # File Structure
 
 
@@ -14,6 +8,15 @@ Use `pip install -e .` to install the package in editable mode.
 
 
 > You will need to use command in USAGE to run the code.
+> All packages for elpv folder can be found under requirements.txt
+
+
+### Usage
+
+Go to root directory of the project and
+Use `pip install -e .` to install the package in editable mode.
+
+Go to requirements.txt 
 
 ### elpv/archive
 Archive are files contains old version of code, including different methods mentioned in the report.
