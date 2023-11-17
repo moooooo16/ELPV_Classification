@@ -2,9 +2,9 @@
 
 
 ## ELPV
->All files under elpv folder are wrote by Mo Li.
-
-> his folder foucse on the implementation of machine learning algorithm and related functions.
+> All files under elpv folder are wrote by Mo Li.
+> All report about ML are wrote by Mo Li
+> His folder foucse on the implementation of machine learning algorithm and related functions.
 
 
 > You will need to use command in USAGE to run the code.
@@ -16,13 +16,14 @@
 Go to root directory of the project and
 Use `pip install -e .` to install the package in editable mode.
 
-Go to requirements.txt 
+Go to requirements.txt for all the packages
 
 ### elpv/archive
 Archive are files contains old version of code, including different methods mentioned in the report.
 
 ### elpv/data
 This folder should include images folder(folder name should be images) and "labels.csv" file. Images folder should contain all images in the dataset.
+An empty folder has left in the data folder, you can just copy paste the image in to image folder.
 
 ### elpv/src
 This folder contains all main logic of the project.

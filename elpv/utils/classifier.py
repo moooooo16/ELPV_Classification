@@ -1,4 +1,4 @@
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, ConfusionMatrixDisplay, f1_score
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, ConfusionMatrixDisplay, f1_score, roc_auc_score
 from sklearn.model_selection import GridSearchCV
 from scipy import stats
 import numpy as np
@@ -14,15 +14,50 @@ def get_report(y_test, pred, name = None):
     report = classification_report(y_test, pred, zero_division=0)
     acc = accuracy_score(y_test, pred)
     f1 = f1_score(y_test, pred, average='macro')
+
     print(report)
+    print()
     ConfusionMatrixDisplay.from_predictions(y_test, pred)
     plt.show()
     print()
     
     return acc, f1
 
+def one_vs_other_up_sampling(X_train, y_train,total_classes, grid_param, knn, n_neighbors=5):
+    clfs = []
+    results = []
+    for i in total_classes:
+        
+        synthetic = []
+        synthetic_y = []
+        binary_y_train = np.where(y_train == i, i, -1)
+        
+        postive = np.where(binary_y_train == i)[0]
+        negative = np.where(binary_y_train == -1)[0]
+        
+        # positive  < negative
+        if len(postive) < len(negative):
+            
+            synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=n_neighbors)
+            synthetic_y = np.ones(len(synthetic)) * i
+        
+        X_train_selected = X_train[np.concatenate((postive, negative))]
+        y_train_selected = binary_y_train[np.concatenate((postive, negative))]
+        
+        if len(synthetic) > 0:
+            X_train_selected = np.concatenate((X_train_selected, synthetic))
+            y_train_selected = np.concatenate((y_train_selected, synthetic_y))
+        
+        print(f'Trainig on: {np.unique(y_train_selected, return_counts=True)}')
+        
+        
+        result, best = grid_search( X_train_selected, y_train_selected, **grid_param)
+        clfs.append(best)
+        results.append(result)
+        
+    return results, clfs
 
-def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
+def down_sampling(total_classes, X_train, y_train, grid_param):
     
     clfs = []
     
@@ -44,8 +79,8 @@ def down_sampling(total_classes, X_train, y_train, clf, param,  k, logger=None):
             
             X_train_selected = X_train[np.concatenate([postive, negative])]
             y_train_selected = y_train[np.concatenate([postive, negative])]
-            svm = clf()
-            best = grid_search( X_train_selected, y_train_selected, svm, param, k = k, classes = (i, j), scoring='accuracy', logger = logger)
+
+            _, best = grid_search( X_train_selected, y_train_selected, **grid_param)
             clfs.append(best)
             
     return clfs
@@ -144,39 +179,7 @@ def grid_search(X_train, y_train,
     return clf.cv_results_, best_clf
 
 
-def one_vs_other_up_sampling(X_train, y_train,total_classes, grid_param, knn, n_neighbors=5):
-    clfs = []
-    results = []
-    for i in total_classes:
-        
-        synthetic = []
-        synthetic_y = []
-        binary_y_train = np.where(y_train == i, i, -1)
-        
-        postive = np.where(binary_y_train == i)[0]
-        negative = np.where(binary_y_train == -1)[0]
-        
-        # positive  < negative
-        if len(postive) < len(negative):
-            
-            synthetic = smote(X_train[postive], np.zeros(len(postive)), percentage=len(negative)/len(postive)*100, clf = knn, n_neighbors=n_neighbors)
-            synthetic_y = np.ones(len(synthetic)) * i
-        
-        X_train_selected = X_train[np.concatenate((postive, negative))]
-        y_train_selected = binary_y_train[np.concatenate((postive, negative))]
-        
-        if len(synthetic) > 0:
-            X_train_selected = np.concatenate((X_train_selected, synthetic))
-            y_train_selected = np.concatenate((y_train_selected, synthetic_y))
-        
-        print(f'Trainig on: {np.unique(y_train_selected, return_counts=True)}')
-        
-        
-        result, best = grid_search( X_train_selected, y_train_selected, **grid_param)
-        clfs.append(best)
-        results.append(result)
-        
-    return results, clfs
+
 
 def distance_vote(X_test, clfs):
     
