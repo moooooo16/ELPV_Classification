@@ -1,2 +1,0 @@
-Please put these ipynb files under '\elpv-dataset\utils' this path to make sure they could run successfully.
-All used MobileNetV3_Large model, but using different settings such as different optimizer, super-parameters, activation functions or SMOTE method, which are correspond to files name and first markdown cell in ipynb files.
