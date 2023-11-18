@@ -3,4 +3,5 @@ data
 data
 out
 __pycache__
-elpv.egg-info*.pdf
+elpv.egg-info
+*.pdf
